@@ -1,2 +1,2 @@
 # trainyolo-py
-sdk &amp; cli for trainyolo platform
+sdk &amp; cli for trainYOLO platform
