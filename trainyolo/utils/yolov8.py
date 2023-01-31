@@ -4,12 +4,12 @@ from trainyolo.client import MLModel
 import yaml
 import re
 
-def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='best.pt', conf=0.25, iou=0.45):
-    run_location = './runs/train' or run_location
+def upload_yolov8_run(project, run_location=None, run=None, weights='best.pt', conf=0.25, iou=0.45):
+    run_location = './runs/detect' or run_location
     # exp path
     if run is None:
         # get latest exp
-        exp_paths = glob.glob(os.path.join(run_location, '*'))
+        exp_paths = glob.glob(os.path.join(run_location, 'train*'))
         # order paths (natural ordering so a bit tricky)
         convert = lambda text: int(text) if text.isdigit() else text.lower()
         alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
@@ -41,7 +41,7 @@ def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='b
         result = results[-1]
 
     # get categories
-    opt_file = os.path.join(exp_path, 'opt.yaml')
+    opt_file = os.path.join(exp_path, 'args.yaml')
     with open(opt_file, 'r') as f:
         opt = yaml.load(f, Loader=yaml.FullLoader)
     
@@ -67,9 +67,9 @@ def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='b
     model.add_version(
         os.path.join(exp_path, 'weights', weights),
         categories=categories,
-        architecture='yolov5',
+        architecture='yolov8',
         params={
-            'model': opt['weights'],
+            'model': opt['model'],
             'imgsz': opt['imgsz'],
             'conf': result.get('conf', conf),
             'iou': iou

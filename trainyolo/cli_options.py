@@ -70,7 +70,6 @@ class Options:
         project_add_model.add_argument(
             "--run-location",
             type=str,
-            default='./runs/train',
             help="Run location, typically ./runs/train"
         )
         project_add_model.add_argument(
@@ -79,13 +78,13 @@ class Options:
             help="Run, eg exp (optional, if omitted will use latest run)"
         )
         project_add_model.add_argument(
-            "--threshold",
+            "--conf",
             type=float,
             default=.25,
-            help="Threshold value"
+            help="conf value"
         )
         project_add_model.add_argument(
-            "--nms-threshold",
+            "--iou",
             type=float,
             default=.45,
             help="Nms threshold value"

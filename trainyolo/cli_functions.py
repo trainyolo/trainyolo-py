@@ -1,7 +1,8 @@
 import os
 from pathlib import Path
 from trainyolo.client import Client, Project
-from trainyolo.utils.yolov5 import upload_yolo_run
+from trainyolo.utils.yolov5 import upload_yolov5_run
+from trainyolo.utils.yolov8 import upload_yolov8_run
 import glob
 import sys
 
@@ -68,12 +69,14 @@ def push_to_project(name, path):
         print(e)
         sys.exit(1)
 
-def add_model(name, type, run_location, run, threshold, nms_threshold):
+def add_model(name, type, run_location, run, conf, iou):
     client = _get_client()
     try:
         project = Project.get_by_name(client, name)
         if type == 'yolov5':
-            upload_yolo_run(project, run_location=run_location, run=run, threshold=threshold, nms_threshold=nms_threshold)
+            upload_yolov5_run(project, run_location=run_location, run=run, conf=conf, iou=iou)
+        elif type == 'yolov8':
+            upload_yolov8_run(project, run_location=run_location, run=run, conf=conf, iou=iou)
         else:
             print(f'Type "{type}" is curently not supported. Options are: yolov5')
             sys.exit(1)

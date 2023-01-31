@@ -29,7 +29,7 @@ def exec_command(args, parser):
         elif args.action == "push":
             cli_functions.push_to_project(args.project, args.path)
         elif args.action == "add_model":
-            cli_functions.add_model(args.project, args.type, args.run_location, args.run, args.threshold, args.nms_threshold)
+            cli_functions.add_model(args.project, args.type, args.run_location, args.run, args.conf, args.iou)
 
         
 if __name__ == "__main__":

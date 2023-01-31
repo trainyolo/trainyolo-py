@@ -266,7 +266,7 @@ class Sample:
 
     def pull_label(self, location='./', type='BBOX', format=None):
         if type=='BBOX':
-            if format == 'yolov5':
+            if format in ['yolov5', 'yolov8']:
                 asset_filename = self.asset['filename']
                 label_filename = os.path.splitext(asset_filename)[0] + '.txt'
                 label_location = os.path.join(location, 'labels', label_filename)
@@ -430,7 +430,7 @@ class Project:
         # pull
         project_loc = os.path.join(location, self.name)
 
-        if format == 'yolov5':
+        if format in ['yolov5', 'yolov8']:
 
             image_loc = os.path.join(project_loc, 'images')
             label_loc = os.path.join(project_loc, 'labels')
