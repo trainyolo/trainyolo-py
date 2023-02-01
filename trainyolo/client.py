@@ -295,6 +295,26 @@ class Sample:
 
             else:
                 raise Exception(f'Export format {format}" is not supported. Please check the documentation for the formats we support.')
+        elif type=='INSTANCE_SEGMENTATION':
+            if format in ['yolov5', 'yolov8']:
+                from trainyolo.utils.yolov8 import annotations_to_yolo_polygons
+                
+                asset_filename = self.asset['filename']
+                label_filename = os.path.splitext(asset_filename)[0] + '.txt'
+                label_location = os.path.join(location, 'labels', label_filename)
+
+                im_w, im_h = self.asset['metadata']['size'] 
+
+                with open(label_location, 'w') as f:
+                    annotations = self.label['annotations']
+                    yolo_polygons = annotations_to_yolo_polygons(annotations, im_w, im_h)
+
+                    for cl, polygon in yolo_polygons:
+                        f.write(f'{cl}')
+                        for coord in polygon:
+                            f.write(f' {coord:.5f}')
+                        f.write('\n')
+
         else:
             assert False, f'Type {type} is not supported.'
 

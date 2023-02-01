@@ -76,7 +76,9 @@ def add_model(name, type, run_location, run, conf, iou):
         if type == 'yolov5':
             upload_yolov5_run(project, run_location=run_location, run=run, conf=conf, iou=iou)
         elif type == 'yolov8':
-            upload_yolov8_run(project, run_location=run_location, run=run, conf=conf, iou=iou)
+            upload_yolov8_run(project, mode='detect', run_location=run_location, run=run, conf=conf, iou=iou)
+        elif type == 'yolov8-seg':
+            upload_yolov8_run(project, mode='segment', run_location=run_location, run=run, conf=conf, iou=iou)
         else:
             print(f'Type "{type}" is curently not supported. Options are: yolov5')
             sys.exit(1)
