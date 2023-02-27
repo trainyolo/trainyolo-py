@@ -194,10 +194,6 @@ class Sample:
 
     def __init__(self, client, data):
         self.client  = client
-
-        # load label data
-        if data['label']:
-            data['label'] = client.get(f'/samples/{data["uuid"]}/label/')
         self.data = data
 
     @property
@@ -256,6 +252,11 @@ class Sample:
         }
         data = client.post(f'/projects/{project}/samples/', payload)
 
+        return cls(client, data)
+    
+    @classmethod
+    def get_by_uuid(cls, client, uuid):
+        data = client.get(f'/samples/{uuid}/')
         return cls(client, data)
 
     def pull_image(self, location='./'):
@@ -375,18 +376,8 @@ class Project:
 
     @property
     def samples(self):
-        sample_list = []
-        
-        page = 1
-        while(True):
-            try:
-                for data in self.client.get(f'/projects/{self.uuid}/samples/?page={page}'):
-                    sample_list.append(Sample(self.client, data))
-                page+=1
-            except:
-                break
-
-        return sample_list
+        samples = self.get_samples(filter='')
+        return samples
 
     @property
     def owner(self):
@@ -441,6 +432,9 @@ class Project:
         return cls(client, data[0])
 
     def pull(self, location='./', filter='LABELED', format=None):
+
+        print('Downloading project')
+
         # make split
         self.make_split()
 
@@ -458,7 +452,7 @@ class Project:
             os.makedirs(image_loc, exist_ok=True)
             os.makedirs(label_loc, exist_ok=True)
 
-            print('Downloading your project...')
+            print('Downloading samples... (this may take a while depending on your dataset size)')
             with Pool(8) as p:
                 inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat('yolov5'))
                 r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
@@ -497,17 +491,12 @@ class Project:
         query = ''
         if 'labeled' in filter.lower():
             query += '&labeled=True'
+
+        sample_list = self.client.get(f'/projects/{self.uuid}/sample_list/?{query}')
         
-        page, samples = 1, []
-        while(True):
-            try:
-                endpoint = f'/projects/{self.uuid}/samples/?page={page}'
-                endpoint += query
-                for data in self.client.get(endpoint):
-                    samples.append(Sample(self.client, data))
-                page+=1
-            except:
-                break
+        print('Loading samples...')
+        with Pool(8) as p:
+            samples = p.starmap(Sample.get_by_uuid, tqdm(zip(repeat(self.client), sample_list), total=len(sample_list)))
         
         return samples
 
