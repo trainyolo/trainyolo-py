@@ -106,7 +106,10 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
     # read conf from f1 curve
     if conf is None:
         print('Reading best conf from F1_curve')
-        f1_curve = os.path.join(exp_path, 'F1_curve.png')
+        if mode == 'detect':
+            f1_curve = os.path.join(exp_path, 'F1_curve.png')
+        else: 
+            f1_curve = os.path.join(exp_path, 'BoxF1_curve.png')
         if os.path.exists(f1_curve):
             conf = read_f1_conf(project.client, f1_curve)
             if conf > 0:
