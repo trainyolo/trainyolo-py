@@ -80,7 +80,7 @@ class Options:
         project_add_model.add_argument(
             "--conf",
             type=float,
-            default=.25,
+            default=None,
             help="conf value"
         )
         project_add_model.add_argument(

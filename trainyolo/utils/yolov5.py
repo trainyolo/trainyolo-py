@@ -3,8 +3,9 @@ import glob
 from trainyolo.client import MLModel
 import yaml
 import re
+from trainyolo.utils.ocr import read_f1_conf
 
-def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='best.pt', conf=0.25, iou=0.45):
+def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='best.pt', conf=None, iou=0.45):
     run_location = './runs/train' or run_location
     # exp path
     if run is None:
@@ -22,10 +23,7 @@ def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='b
     with open(csv_file, 'r') as f:
         lines = [[val.strip() for val in r.split(",")] for r in f.readlines()]
         headers, csv_list = lines[0], lines[1:]
-        if len(headers) == 15:
-            results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7]), 'conf': float(item[-1])} for item in csv_list]
-        else:
-            results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7])} for item in csv_list]
+        results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7])} for item in csv_list]
 
     if weights == 'best.pt':
         # find best result
@@ -49,6 +47,22 @@ def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='b
     with open(dataset_file, 'r') as f:
         dataset = yaml.load(f, Loader=yaml.FullLoader)
     categories = [{'id': id+1, 'name': name} for id, name in dataset['names'].items()]
+
+    # read conf from f1 curve
+    if conf is None:
+        print('Reading best conf from F1_curve')
+        f1_curve = os.path.join(exp_path, 'F1_curve.png')
+        if os.path.exists(f1_curve):
+            conf = read_f1_conf(project.client, f1_curve)
+            if conf > 0:
+                print(f'Using conf={conf}, which maximizes f1 score.')
+                conf = conf
+            else:
+                print("Something went wrong while reading f1 curve, defaulting to conf=0.5")
+                conf = 0.5
+        else:
+            print("Unable to find f1 curve, defaulting to conf=0.5")
+            conf = 0.5
     
     # create model
     if project.model is None:
@@ -71,7 +85,7 @@ def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='b
         params={
             'model': opt['weights'],
             'imgsz': opt['imgsz'],
-            'conf': result.get('conf', conf),
+            'conf': conf,
             'iou': iou
         },
         metrics={

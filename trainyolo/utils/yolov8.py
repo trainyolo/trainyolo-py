@@ -5,6 +5,7 @@ import yaml
 import re
 import numpy as np
 import cv2
+from trainyolo.utils.ocr import read_f1_conf
 
 def rle_to_mask(rle):
     (h, w), counts = rle['size'], rle['counts']
@@ -42,7 +43,7 @@ def annotations_to_yolo_polygons(annotations, im_w, im_h):
         output.append([cl-1, polygons[0]])
     return output
 
-def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weights='best.pt', conf=0.25, iou=0.45):
+def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weights='best.pt', conf=None, iou=0.45):
     run_location = run_location or f'./runs/{mode}'
 
     # exp path
@@ -102,6 +103,22 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
         dataset = yaml.load(f, Loader=yaml.FullLoader)
     categories = [{'id': id+1, 'name': name} for id, name in dataset['names'].items()]
     
+    # read conf from f1 curve
+    if conf is None:
+        print('Reading best conf from F1_curve')
+        f1_curve = os.path.join(exp_path, 'F1_curve.png')
+        if os.path.exists(f1_curve):
+            conf = read_f1_conf(project.client, f1_curve)
+            if conf > 0:
+                print(f'Using conf={conf}, which maximizes f1 score.')
+                conf = conf
+            else:
+                print("Something went wrong while reading f1 curve, defaulting to conf=0.5")
+                conf = 0.5
+        else:
+            print("Unable to find f1 curve, defaulting to conf=0.5")
+            conf = 0.5
+
     # create model
     if project.model is None:
         model = MLModel.create(
@@ -123,7 +140,7 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
         params={
             'model': opt['model'],
             'imgsz': opt['imgsz'],
-            'conf': result.get('conf', conf),
+            'conf': conf,
             'iou': iou
         },
         metrics={

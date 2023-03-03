@@ -5,6 +5,54 @@ from multiprocessing import Pool
 from tqdm import tqdm
 from itertools import repeat
 import yaml
+import time
+
+class OCRResult:
+    def __init__(self, client, data):
+        self.client = client
+        self.data = data
+
+    def update(self):
+        data = self.client.get(f'/functions/ocr/{self.uuid}/')
+        self.data = data
+
+    @property
+    def uuid(self):
+        return self.data['uuid']
+
+    @property
+    def result(self):
+        return self.data['result']
+    
+    @property
+    def processing_status(self):
+        return self.data['processing_status']
+    
+    @property
+    def processing_msg(self):
+        return self.data['processing_msg']
+    
+    @classmethod
+    def create(cls, client, image):
+
+        asset = Asset.create(client, image)
+
+        payload = {
+            'image': asset.uuid
+        }
+        data = client.post(f'/functions/ocr/', payload)
+
+        return cls(client, data)
+
+    def get_result(self, retry=30):
+        r = 0
+        while(self.processing_status == 'PENDING'):
+            self.update()
+            time.sleep(1)
+            r+=1
+            if r > retry:
+                break
+        return self.processing_status, self.result
 
 class Asset:
 
