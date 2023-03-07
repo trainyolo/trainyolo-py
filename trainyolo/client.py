@@ -444,11 +444,18 @@ class Project:
         return self.data['created_at']
 
     @classmethod
-    def create(cls, client, name, categories, annotation_type, description=''):
+    def create(cls, client, name, categories=['object'], description='', annotation_type='BBOX'):
+        if annotation_type == 'BBOX':
+            category_dict = [{'id': id + 1, 'name': name} for id, name in enumerate(categories)]
+        elif annotation_type == 'INSTANCE_SEGMENTATION':
+            category_dict = [{'id': id + 1, 'name': name, 'has_instances': True} for id, name in enumerate(categories)]
+        else:
+            raise Exception(f'Annotation type "{annotation_type}" is not supported. Either use "BBOX" or "INSTANCE_SEGMENTATION".')
+
         payload = {
             'name': name,
             'description': description,
-            'categories': categories,
+            'categories': category_dict,
             'annotation_type': annotation_type
         }
         data = client.post('/projects/', payload)

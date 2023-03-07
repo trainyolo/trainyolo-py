@@ -44,7 +44,8 @@ def annotations_to_yolo_polygons(annotations, im_w, im_h):
     return output
 
 def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weights='best.pt', conf=None, iou=0.45):
-    run_location = run_location or f'./runs/{mode}'
+    run_location = run_location or './runs'
+    run_location = os.path.join(run_location, mode)
 
     # exp path
     if run is None:

@@ -24,7 +24,9 @@ def exec_command(args, parser):
         print(__version__)
 
     if args.command == "project": 
-        if args.action == "pull":
+        if args.action == "create":
+            cli_functions.create_project(args.name, args.type, args.categories)
+        elif args.action == "pull":
             cli_functions.pull_project(args.project, args.path, args.format)
         elif args.action == "push":
             cli_functions.push_to_project(args.project, args.path)

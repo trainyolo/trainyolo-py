@@ -5,8 +5,9 @@ import yaml
 import re
 from trainyolo.utils.ocr import read_f1_conf
 
-def upload_yolov5_run(project, run_location='./runs/train', run=None, weights='best.pt', conf=None, iou=0.45):
-    run_location = './runs/train' or run_location
+def upload_yolov5_run(project, run_location=None, run=None, weights='best.pt', conf=None, iou=0.45):
+    run_location = run_location or './runs'
+    run_location = os.path.join(run_location, 'train')
     # exp path
     if run is None:
         # get latest exp

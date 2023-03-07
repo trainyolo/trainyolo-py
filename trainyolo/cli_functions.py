@@ -37,6 +37,15 @@ def authenticate(apikey):
         print('API Key is invalid.')
         sys.exit(1)
 
+def create_project(name, annotation_type, categories):
+    client = _get_client()
+    try:
+        categories = [cat.strip() for cat in categories.split(',')]
+        Project.create(client, name, categories=categories, annotation_type=annotation_type)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
+
 def pull_project(name, path, format):
     client = _get_client() 
     try:   

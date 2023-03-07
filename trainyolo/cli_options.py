@@ -18,7 +18,27 @@ class Options:
         # project
         project = subparsers.add_parser("project", help="project related functions")
         project_action = project.add_subparsers(dest="action")
-       
+
+        ## project create
+        project_create = project_action.add_parser("create", help="Create a new project")
+        project_create.add_argument(
+            "name",
+            type=str,
+            help="Name of project"
+        )
+        project_create.add_argument(
+            "--type",
+            type=str,
+            default="BBOX",
+            help="project type: BBOX or INSTANCE_SEGMENTATION"
+        )
+        project_create.add_argument(
+            "--categories",
+            type=str,
+            default="object",
+            help="list of categories, use comma between categories, eg: cat_1,cat_2"
+        )
+
         ## project pull
         project_pull = project_action.add_parser("pull", help="Pull samples from project")
         project_pull.add_argument(
@@ -70,7 +90,7 @@ class Options:
         project_add_model.add_argument(
             "--run-location",
             type=str,
-            help="Run location, typically ./runs/train"
+            help="Run location, typically ./runs"
         )
         project_add_model.add_argument(
             "--run",
@@ -81,7 +101,7 @@ class Options:
             "--conf",
             type=float,
             default=None,
-            help="conf value"
+            help="conf value, if ommited will use the one that maximizes f1 score"
         )
         project_add_model.add_argument(
             "--iou",
