@@ -40,7 +40,8 @@ def annotations_to_yolo_polygons(annotations, im_w, im_h):
         cl, bbox, rle = ann['category_id'], ann['bbox'], ann['segmentation']
         mask = rle_to_mask(rle)
         polygons = mask_to_polygons(mask, bbox[0], bbox[1], im_w, im_h)
-        output.append([cl-1, polygons[0]])
+        if len(polygons) > 0: # sometimes empty labels are saved
+            output.append([cl-1, polygons[0]])
     return output
 
 def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weights='best.pt', conf=None, iou=0.45):
