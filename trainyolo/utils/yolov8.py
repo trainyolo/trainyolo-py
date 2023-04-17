@@ -25,14 +25,69 @@ def rle_to_mask(rle):
     return mask
 
 def mask_to_polygons(mask, offset_x=0, offset_y=0, norm_x=1, norm_y=1):
-    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)
 
     polygons = []
-    for polygon in contours:
-        polygon = ((polygon.squeeze() + np.array([offset_x, offset_y])) / np.array([norm_x, norm_y])).ravel().tolist()
+    for countour in contours:
+        epsilon = 0.001 * cv2.arcLength(countour, True)
+        polygon = cv2.approxPolyDP(countour, epsilon, True)
+        polygon = ((polygon.squeeze() + np.array([offset_x, offset_y])) / np.array([norm_x, norm_y])).flatten().tolist()
         polygons.append(polygon)
 
     return polygons
+
+# ref: ultralytics/JSON2YOLO
+def min_index(arr1, arr2):
+    """Find a pair of indexes with the shortest distance. 
+    Args:
+        arr1: (N, 2).
+        arr2: (M, 2).
+    Return:
+        a pair of indexes(tuple).
+    """
+    dis = ((arr1[:, None, :] - arr2[None, :, :]) ** 2).sum(-1)
+    return np.unravel_index(np.argmin(dis, axis=None), dis.shape)
+
+# ref: ultralytics/JSON2YOLO
+def merge_polygons(polygons):
+    s = []
+    polygons = [np.array(i).reshape(-1, 2) for i in polygons]
+    idx_list = [[] for _ in range(len(polygons))]
+
+    # record the indexes with min distance between each segment
+    for i in range(1, len(polygons)):
+        idx1, idx2 = min_index(polygons[i - 1], polygons[i])
+        idx_list[i - 1].append(idx1)
+        idx_list[i].append(idx2)
+
+    # use two round to connect all the segments
+    for k in range(2):
+        # forward connection
+        if k == 0:
+            for i, idx in enumerate(idx_list):
+                # middle segments have two indexes
+                # reverse the index of middle segments
+                if len(idx) == 2 and idx[0] > idx[1]:
+                    idx = idx[::-1]
+                    polygons[i] = polygons[i][::-1, :]
+
+                polygons[i] = np.roll(polygons[i], -idx[0], axis=0)
+                polygons[i] = np.concatenate([polygons[i], polygons[i][:1]])
+                # deal with the first segment and the last one
+                if i in [0, len(idx_list) - 1]:
+                    s.append(polygons[i])
+                else:
+                    idx = [0, idx[1] - idx[0]]
+                    s.append(polygons[i][idx[0]:idx[1] + 1])
+
+        else:
+            for i in range(len(idx_list) - 1, -1, -1):
+                if i not in [0, len(idx_list) - 1]:
+                    idx = idx_list[i]
+                    nidx = abs(idx[1] - idx[0])
+                    s.append(polygons[i][nidx:])
+    return s
+
 
 def annotations_to_yolo_polygons(annotations, im_w, im_h):
     output = []
@@ -40,7 +95,11 @@ def annotations_to_yolo_polygons(annotations, im_w, im_h):
         cl, bbox, rle = ann['category_id'], ann['bbox'], ann['segmentation']
         mask = rle_to_mask(rle)
         polygons = mask_to_polygons(mask, bbox[0], bbox[1], im_w, im_h)
-        if len(polygons) > 0: # sometimes empty labels are saved
+        if len(polygons) > 1: # multi part polygon 
+            merged_polygon = merge_polygons(polygons)
+            merged_polygon = np.concatenate(merged_polygon, axis=0)
+            output.append([cl-1, merged_polygon])
+        elif len(polygons) > 0: # sometimes empty labels are saved
             output.append([cl-1, polygons[0]])
     return output
 
