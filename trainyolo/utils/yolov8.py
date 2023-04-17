@@ -97,7 +97,7 @@ def annotations_to_yolo_polygons(annotations, im_w, im_h):
         polygons = mask_to_polygons(mask, bbox[0], bbox[1], im_w, im_h)
         if len(polygons) > 1: # multi part polygon 
             merged_polygon = merge_polygons(polygons)
-            merged_polygon = np.concatenate(merged_polygon, axis=0)
+            merged_polygon = np.concatenate(merged_polygon, axis=0).flatten().tolist()
             output.append([cl-1, merged_polygon])
         elif len(polygons) > 0: # sometimes empty labels are saved
             output.append([cl-1, polygons[0]])
