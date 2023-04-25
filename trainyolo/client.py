@@ -558,6 +558,24 @@ class Project:
     def add_sample(self, image_file, tags={}):
         return Sample.create(self.client, self.uuid, image_file, tags=tags)
 
+    def update_categories(self, categories, annotation_type='BBOX'):
+        if annotation_type == 'BBOX':
+            category_dict = [{'id': id + 1, 'name': name} for id, name in enumerate(categories)]
+        elif annotation_type == 'INSTANCE_SEGMENTATION':
+            category_dict = [{'id': id + 1, 'name': name, 'has_instances': True} for id, name in enumerate(categories)]
+        else:
+            raise Exception(f'Annotation type "{annotation_type}" is not supported. Either use "BBOX" or "INSTANCE_SEGMENTATION".')
+
+        payload = {
+            'name': self.name,
+            'description': self.description,
+            'categories': category_dict,
+            'annotation_type': annotation_type
+        }
+
+        data = self.client.put(f'/projects/{self.uuid}/', payload)
+        self.data = data
+
     def make_split(self):
         return self.client.put(f'/projects/{self.uuid}/make_split/')
 
