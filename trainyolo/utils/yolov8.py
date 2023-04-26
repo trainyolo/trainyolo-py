@@ -6,23 +6,41 @@ import re
 import numpy as np
 import cv2
 from trainyolo.utils.ocr import read_f1_conf
+from trainyolo.utils.rle import rle_to_mask, mask_to_rle
+from trainyolo.utils.image_ops import scale_masks
 
-def rle_to_mask(rle):
-    (h, w), counts = rle['size'], rle['counts']
+def format_boxes(boxes, cls):
+    annotations = []
+    for box, cl in zip(boxes, cls):
+        x1, y1, x2, y2 = box.tolist()
+        w, h = x2 - x1, y2 - y1
+        annotations.append({
+            'bbox': [x1, y1, w, h],
+            'area': w * h,
+            'category_id': int(cl) + 1
+        })
+    return annotations
 
-    mask = np.zeros(w*h, dtype=np.uint8)
+def format_masks(masks, cls):
+    annotations = []
 
-    index = 0
-    zeros = True
-    for count in counts:
-        if not zeros:
-            mask[index : index + count] = 255
-        index+=count
-        zeros = not zeros
+    if masks:
+        im_h, im_w = masks.orig_shape
+        masks = masks.masks
 
-    mask = np.reshape(mask, [h, w])
-    
-    return mask
+        for mask, cl in zip(masks, cls):
+            mask = scale_masks(mask[:,:,None], (im_h, im_w))[:,:,0]
+            y, x = np.nonzero(mask)
+            if len(y) > 0:
+                x_min, x_max, y_min, y_max = int(np.min(x)), int(np.max(x)), int(np.min(y)), int(np.max(y))
+                cropped_mask = mask[y_min:y_max+1, x_min:x_max+1]
+                rle = mask_to_rle(cropped_mask>0)
+                annotations.append({
+                    'segmentation': rle,
+                    'bbox': [x_min, y_min, x_max - x_min + 1, y_max - y_min + 1],
+                    'category_id': int(cl) + 1
+                })
+    return annotations
 
 def mask_to_polygons(mask, offset_x=0, offset_y=0, norm_x=1, norm_y=1):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)

@@ -238,6 +238,43 @@ class MLModel:
     def add_version(self, weights, categories, architecture, params, metrics={}):
         return MLModelVersion.create(self.client, self.uuid, weights, categories, architecture, params, metrics=metrics)
 
+class Video:
+
+    def __init__(self, client, data):
+        self.client = client
+        self.data = data
+
+    @property
+    def uuid(self):
+        return self.data['uuid']
+
+    @property
+    def name(self):
+        return self.data['name']
+
+    @property
+    def video(self):
+        return self.data['video']
+    
+    @property
+    def created_at(self):
+        return self.data['created_at']
+    
+    @classmethod
+    def create(cls, client, project, video_file):
+        # create asset
+        asset = Asset.create(client, video_file)
+
+        # create sample
+        payload = {
+            'name': asset.filename,
+            'video': asset.uuid,
+        }
+        data = client.post(f'/projects/{project}/videos/', payload)
+
+        return cls(client, data)
+    
+
 class Sample:
 
     def __init__(self, client, data):
@@ -266,6 +303,17 @@ class Sample:
             'annotations': annotations
         }
         self.data['label'] = self.client.put(f'/samples/{self.uuid}/label/', payload=payload)
+
+    @property
+    def prediction(self):
+        return self.data['prediction']
+    
+    @prediction.setter
+    def prediction(self, annotations):
+        payload = {
+            'annotations': annotations
+        }
+        self.data['prediction'] = self.client.put(f'/samples/{self.uuid}/prediction/', payload=payload)
 
     @property
     def approved(self):
@@ -543,9 +591,12 @@ class Project:
 
     def get_samples(self, filter='LABELED'):
 
-        query = ''
-        if 'labeled' in filter.lower():
-            query += '&labeled=True'
+        if filter.lower() == 'labeled':
+            query = 'labeled=True'
+        elif filter.lower() == 'unlabeled':
+            query = 'labeled=False'
+        else:
+            query = ''
 
         sample_list = self.client.get(f'/projects/{self.uuid}/sample_list/?{query}')
         

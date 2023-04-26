@@ -5,6 +5,18 @@ import yaml
 import re
 from trainyolo.utils.ocr import read_f1_conf
 
+def format_boxes(boxes):
+    annotations = []
+    for box in boxes:
+        x1, y1, x2, y2, _, cl = box.tolist()
+        w, h = x2 - x1, y2 - y1
+        annotations.append({
+            'bbox': [x1, y1, w, h],
+            'area': w * h,
+            'category_id': int(cl) + 1
+        })
+    return annotations
+
 def upload_yolov5_run(project, run_location=None, run=None, weights='best.pt', conf=None, iou=0.45):
     run_location = run_location or './runs'
     run_location = os.path.join(run_location, 'train')
