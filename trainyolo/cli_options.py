@@ -84,7 +84,7 @@ class Options:
             "--type",
             type=str,
             default='yolov5',
-            help="Model type, eg yolov5/yolov8/yolov8-seg"
+            help="Model type, eg yolov5/yolov8/yolov8-seg/yolov8-pose"
         )
 
         project_add_model.add_argument(

@@ -362,7 +362,7 @@ class Sample:
             urlretrieve(self.asset['url'], asset_location)
 
     def pull_label(self, location='./', type='BBOX', format=None):
-        if type=='BBOX':
+        if type in ['BBOX','KEYPOINT']:
             if format in ['yolov5', 'yolov8']:
                 asset_filename = self.asset['filename']
                 label_filename = os.path.splitext(asset_filename)[0] + '.txt'
@@ -388,8 +388,16 @@ class Sample:
                         xc, yc = xc / im_w, yc / im_h
                         w, h = w / im_w, h / im_h
 
-                        f.write(f'{cl} {xc:.5f} {yc:.5f} {w:.5f} {h:.5f}\n')
+                        f.write(f'{cl} {xc:.5f} {yc:.5f} {w:.5f} {h:.5f}')
 
+                        if type == 'KEYPOINT':
+                            keypoints = l['keypoints']
+                            for kx, ky, kv in zip(keypoints[0::3], keypoints[1::3], keypoints[2::3]):
+                                kx = min(max(0, kx), im_w) / im_w
+                                ky = min(max(0, ky), im_h) / im_h
+                                f.write(f' {kx:.5f} {ky:.5f} {kv}')
+
+                        f.write('\n')
             else:
                 raise Exception(f'Export format {format}" is not supported. Please check the documentation for the formats we support.')
         elif type=='INSTANCE_SEGMENTATION':
@@ -493,12 +501,12 @@ class Project:
 
     @classmethod
     def create(cls, client, name, categories=['object'], description='', annotation_type='BBOX'):
-        if annotation_type == 'BBOX':
+        if annotation_type in ['BBOX', 'KEYPOINT']:
             category_dict = [{'id': id + 1, 'name': name} for id, name in enumerate(categories)]
         elif annotation_type == 'INSTANCE_SEGMENTATION':
             category_dict = [{'id': id + 1, 'name': name, 'has_instances': True} for id, name in enumerate(categories)]
         else:
-            raise Exception(f'Annotation type "{annotation_type}" is not supported. Either use "BBOX" or "INSTANCE_SEGMENTATION".')
+            raise Exception(f'Annotation type "{annotation_type}" is not supported. Either use "BBOX" , "KEYPOINT" or "INSTANCE_SEGMENTATION".')
 
         payload = {
             'name': name,
@@ -576,7 +584,9 @@ class Project:
                     'val': 'val.txt',
                     'names': {cat['id']-1:cat['name'] for cat in self.categories}
                 }
-                yaml.dump(yaml_content, f)
+                if self.annotation_type == 'KEYPOINT':
+                    yaml_content['kpt_shape'] = [len(self.categories[0]['keypoints']),3]
+                yaml.dump(yaml_content, f, default_flow_style=False)
 
             return project_loc
 

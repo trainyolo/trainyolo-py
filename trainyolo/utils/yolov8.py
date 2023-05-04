@@ -144,6 +144,17 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
 
         if mode == 'detect':
             results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7])} for item in csv_list]
+        elif mode == 'pose':
+            results = [{
+                'precision': float(item[6]), 
+                'recall':float(item[7]), 
+                'map50':float(item[8]), 
+                'map':float(item[9]),
+                'precision_pose': float(item[10]), 
+                'recall_pose':float(item[11]), 
+                'map50_pose':float(item[12]), 
+                'map_pose':float(item[13]),
+            } for item in csv_list]
         else: #segment
             results = [{
                 'precision': float(item[5]), 
@@ -162,6 +173,8 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
         for result in results:
             if mode == 'detect':
                 fi = 0.1*result['map50'] + 0.9*result['map']
+            elif mode == 'pose':
+                fi = 0.1*result['map50'] + 0.9*result['map'] + 0.1*result['map50_pose'] + 0.9*result['map_pose']
             else: #segment
                 fi = 0.1*result['map50'] + 0.9*result['map'] + 0.1*result['map50_mask'] + 0.9*result['map_mask']
             if fi > best_fi:
@@ -187,6 +200,8 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
         print('Reading best conf from F1_curve')
         if mode == 'detect':
             f1_curve = os.path.join(exp_path, 'F1_curve.png')
+        elif mode == 'pose':
+            f1_curve = os.path.join(exp_path, 'BoxF1_curve.png')
         else: 
             f1_curve = os.path.join(exp_path, 'BoxF1_curve.png')
         if os.path.exists(f1_curve):
@@ -207,7 +222,7 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
             project.client,
             f'{project.name}',
             description='',
-            type='BBOX' if mode == 'detect' else 'INSTANCE_SEGMENTATION',
+            type=project.annotation_type,
             public = project.public,
             project=project.uuid
         )
@@ -218,7 +233,7 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
     model.add_version(
         os.path.join(exp_path, 'weights', weights),
         categories=categories,
-        architecture='yolov8' if mode == 'detect' else 'yolov8-seg',
+        architecture='yolov8' if mode == 'detect' else 'yolov8-seg' if mode == 'segment' else 'yolov8-pose',
         params={
             'model': opt['model'],
             'imgsz': opt['imgsz'],
@@ -239,5 +254,14 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
             'map_mask': round(result['map_mask'], 3),
             'precision_mask': round(result['precision_mask'], 3),
             'recall_mask': round(result['recall_mask'], 3)
+        } if mode == 'segment' else {
+            'map50': round(result['map50'], 3),
+            'map': round(result['map'], 3),
+            'precision': round(result['precision'], 3),
+            'recall': round(result['recall'], 3),
+            'map50_pose': round(result['map50_pose'], 3),
+            'map_pose': round(result['map_pose'], 3),
+            'precision_pose': round(result['precision_pose'], 3),
+            'recall_pose': round(result['recall_pose'], 3) 
         }
     )
