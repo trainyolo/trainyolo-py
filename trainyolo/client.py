@@ -6,6 +6,7 @@ from tqdm import tqdm
 from itertools import repeat
 import yaml
 import time
+import shutil
 
 class OCRResult:
     def __init__(self, client, data):
@@ -542,7 +543,7 @@ class Project:
 
         return cls(client, data[0])
 
-    def pull(self, location='./', filter='LABELED', format=None):
+    def pull(self, location='./', filter='LABELED', format=None, trainval_dirs=False):
 
         print('Downloading project')
 
@@ -588,6 +589,21 @@ class Project:
                     yaml_content['kpt_shape'] = [len(self.categories[0]['keypoints']),3]
                 yaml.dump(yaml_content, f, default_flow_style=False)
 
+            # create seperate train/val folder with symlinks
+            if trainval_dirs:
+                
+                # remove folders as train/val spit might have changed
+                [shutil.rmtree(os.path.join(project_loc, split, f)) for split in ['train', 'val'] for f in ['images', 'labels'] if os.path.exists(os.path.join(project_loc, split, f))]
+
+                # create folders
+                [os.makedirs(os.path.join(project_loc, split, f), exist_ok=True) for split in ['train', 'val'] for f in ['images', 'labels']]
+
+                # create symlinks
+                for s in samples:
+                    txt_filename = s.asset["filename"].rsplit('.',1)[0] + '.txt'
+                    os.symlink(f'../../images/{s.asset["filename"]}', f'{os.path.abspath(project_loc)}/{"train" if s.split == "TRAIN" else "val"}/images/{s.asset["filename"]}')
+                    os.symlink(f'../../labels/{txt_filename}', f'{os.path.abspath(project_loc)}/{"train" if s.split == "TRAIN" else "val"}/labels/{txt_filename}')
+            
             return project_loc
 
         else:
