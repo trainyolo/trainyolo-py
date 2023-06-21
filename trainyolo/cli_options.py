@@ -55,8 +55,12 @@ class Options:
         project_pull.add_argument(
             "--format",
             type=str,
-            default='yolov5',
             help="Output format"
+        )
+        project_pull.add_argument(
+            "--owner",
+            type=str,
+            help="project owner"
         )
 
         ## project push

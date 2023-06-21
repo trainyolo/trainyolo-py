@@ -27,7 +27,7 @@ def exec_command(args, parser):
         if args.action == "create":
             cli_functions.create_project(args.name, args.type, args.categories)
         elif args.action == "pull":
-            cli_functions.pull_project(args.project, args.path, args.format)
+            cli_functions.pull_project(args.project, args.path, args.format, args.owner)
         elif args.action == "push":
             cli_functions.push_to_project(args.project, args.path)
         elif args.action == "add_model":

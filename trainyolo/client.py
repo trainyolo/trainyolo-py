@@ -364,6 +364,7 @@ class Sample:
 
     def pull_label(self, location='./', type='BBOX', format=None):
         if type in ['BBOX','KEYPOINT']:
+            format = format or 'yolov8'
             if format in ['yolov5', 'yolov8']:
                 asset_filename = self.asset['filename']
                 label_filename = os.path.splitext(asset_filename)[0] + '.txt'
@@ -402,7 +403,8 @@ class Sample:
             else:
                 raise Exception(f'Export format {format}" is not supported. Please check the documentation for the formats we support.')
         elif type=='INSTANCE_SEGMENTATION':
-            if format in ['yolov5', 'yolov8']:
+            format = format or 'yolov8'
+            if format in ['yolov8']:
                 from trainyolo.utils.yolov8 import annotations_to_yolo_polygons
                 
                 asset_filename = self.asset['filename']
@@ -420,7 +422,19 @@ class Sample:
                         for coord in polygon:
                             f.write(f' {coord:.5f}')
                         f.write('\n')
+            else:
+                raise Exception(f'Export format {format}" is not supported. Please check the documentation for the formats we support.')
+        elif type=='SEGMENTATION':
+            from trainyolo.utils.mask_utils import annotations_to_image
 
+            asset_filename = self.asset['filename']
+            label_filename = os.path.splitext(asset_filename)[0] + '.png'
+            label_location = os.path.join(location, 'labels', label_filename)
+
+            im_w, im_h = self.asset['metadata']['size'] 
+
+            _, cls = annotations_to_image(self.label['annotations'], (im_w, im_h))
+            cls.save(label_location)
         else:
             assert False, f'Type {type} is not supported.'
 
@@ -553,61 +567,55 @@ class Project:
         # load samples
         samples = self.get_samples(filter=filter)
 
-        # pull
+        # create output folders
         project_loc = os.path.join(location, self.name)
+        image_loc = os.path.join(project_loc, 'images')
+        label_loc = os.path.join(project_loc, 'labels')
 
-        if format in ['yolov5', 'yolov8']:
+        os.makedirs(image_loc, exist_ok=True)
+        os.makedirs(label_loc, exist_ok=True)
 
-            image_loc = os.path.join(project_loc, 'images')
-            label_loc = os.path.join(project_loc, 'labels')
+        print('Downloading samples... (this may take a while depending on your dataset size)')
+        with Pool(8) as p:
+            inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat(format))
+            r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
 
-            os.makedirs(image_loc, exist_ok=True)
-            os.makedirs(label_loc, exist_ok=True)
+        # create train-val txt file
+        with open(os.path.join(project_loc, 'train.txt'), 'w') as f_train, open(os.path.join(project_loc, 'val.txt'), 'w') as f_val:
+            for s in samples:
+                if s.split == 'TRAIN':
+                    f_train.write(f'./images/{s.asset["filename"]}\n')
+                if s.split == 'VAL':
+                    f_val.write(f'./images/{s.asset["filename"]}\n')
 
-            print('Downloading samples... (this may take a while depending on your dataset size)')
-            with Pool(8) as p:
-                inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat('yolov5'))
-                r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
+        # create dataset yaml file
+        with open(os.path.join(project_loc, 'dataset.yaml'), 'w') as f:
+            yaml_content = {
+                'path': os.path.abspath(project_loc),
+                'train': 'train.txt',
+                'val': 'val.txt',
+                'names': {cat['id']-1:cat['name'] for cat in self.categories}
+            }
+            if self.annotation_type == 'KEYPOINT':
+                yaml_content['kpt_shape'] = [len(self.categories[0]['keypoints']),3]
+            yaml.dump(yaml_content, f, default_flow_style=False)
 
-            # create train-val txt file
-            with open(os.path.join(project_loc, 'train.txt'), 'w') as f_train, open(os.path.join(project_loc, 'val.txt'), 'w') as f_val:
-                for s in samples:
-                    if s.split == 'TRAIN':
-                        f_train.write(f'./images/{s.asset["filename"]}\n')
-                    if s.split == 'VAL':
-                        f_val.write(f'./images/{s.asset["filename"]}\n')
-
-            # create dataset yaml file
-            with open(os.path.join(project_loc, 'dataset.yaml'), 'w') as f:
-                yaml_content = {
-                    'path': os.path.abspath(project_loc),
-                    'train': 'train.txt',
-                    'val': 'val.txt',
-                    'names': {cat['id']-1:cat['name'] for cat in self.categories}
-                }
-                if self.annotation_type == 'KEYPOINT':
-                    yaml_content['kpt_shape'] = [len(self.categories[0]['keypoints']),3]
-                yaml.dump(yaml_content, f, default_flow_style=False)
-
-            # create seperate train/val folder with symlinks
-            if trainval_dirs:
-                
-                # remove folders as train/val spit might have changed
-                [shutil.rmtree(os.path.join(project_loc, split, f)) for split in ['train', 'val'] for f in ['images', 'labels'] if os.path.exists(os.path.join(project_loc, split, f))]
-
-                # create folders
-                [os.makedirs(os.path.join(project_loc, split, f), exist_ok=True) for split in ['train', 'val'] for f in ['images', 'labels']]
-
-                # create symlinks
-                for s in samples:
-                    txt_filename = s.asset["filename"].rsplit('.',1)[0] + '.txt'
-                    os.symlink(f'../../images/{s.asset["filename"]}', f'{os.path.abspath(project_loc)}/{"train" if s.split == "TRAIN" else "val"}/images/{s.asset["filename"]}')
-                    os.symlink(f'../../labels/{txt_filename}', f'{os.path.abspath(project_loc)}/{"train" if s.split == "TRAIN" else "val"}/labels/{txt_filename}')
+        # create seperate train/val folder with symlinks
+        if trainval_dirs:
             
-            return project_loc
+            # remove folders as train/val spit might have changed
+            [shutil.rmtree(os.path.join(project_loc, split, f)) for split in ['train', 'val'] for f in ['images', 'labels'] if os.path.exists(os.path.join(project_loc, split, f))]
 
-        else:
-            raise Exception(f'Export format "{format}" is not available. Please check our documentation for the different formats we support.')
+            # create folders
+            [os.makedirs(os.path.join(project_loc, split, f), exist_ok=True) for split in ['train', 'val'] for f in ['images', 'labels']]
+
+            # create symlinks
+            for s in samples:
+                txt_filename = s.asset["filename"].rsplit('.',1)[0] + '.txt'
+                os.symlink(f'../../images/{s.asset["filename"]}', f'{os.path.abspath(project_loc)}/{"train" if s.split == "TRAIN" else "val"}/images/{s.asset["filename"]}')
+                os.symlink(f'../../labels/{txt_filename}', f'{os.path.abspath(project_loc)}/{"train" if s.split == "TRAIN" else "val"}/labels/{txt_filename}')
+        
+        return project_loc
 
 
     def push(self, image_list):

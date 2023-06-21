@@ -46,10 +46,10 @@ def create_project(name, annotation_type, categories):
         print(e)
         sys.exit(1)
 
-def pull_project(name, path, format):
+def pull_project(name, path, format, owner):
     client = _get_client() 
     try:   
-        project = Project.get_by_name(client, name)
+        project = Project.get_by_name(client, name, owner=owner)
         project.pull(location=path, format=format)
     except Exception as e:
         print(e)
