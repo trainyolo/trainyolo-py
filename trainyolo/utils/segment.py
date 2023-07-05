@@ -27,9 +27,9 @@ def upload_segment_run(project, run_location=None):
     else:
         model = project.model
 
-    print(f'adding weights: {os.path.join(run_location, "best_miou_model.csv")} to project ...')
+    print(f'adding weights: {os.path.join(run_location, "best_miou_model.pt")} to project ...')
     model.add_version(
-        os.path.join(run_location, "best_miou_model.csv"),
+        os.path.join(run_location, "best_miou_model.pt"),
         categories=project.categories,
         architecture='trainyolo-seg',
         params={
