@@ -9,6 +9,19 @@ from trainyolo.utils.ocr import read_f1_conf
 from trainyolo.utils.rle import rle_to_mask, mask_to_rle
 from trainyolo.utils.image_ops import scale_masks
 
+def format_keypoints(boxes, keypoints, cls):
+    annotations = []
+    for box, kps, cl in zip(boxes, keypoints, cls):
+        x1, y1, x2, y2 = box.tolist()
+        w, h = x2 - x1, y2 - y1
+        annotations.append({
+            'bbox': [x1, y1, w, h],
+            'area': w * h,
+            'category_id': int(cl) + 1,
+            'keypoints': [round(k) for kp in kps for k in kp]
+        })
+    return annotations
+
 def format_boxes(boxes, cls):
     annotations = []
     for box, cl in zip(boxes, cls):
