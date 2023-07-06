@@ -15,7 +15,7 @@ def rle_to_mask(rle):
     zeros = True
     for count in counts:
         if not zeros:
-            mask[index : index + count] = 255
+            mask[index : index + count] = 1
         index+=count
         zeros = not zeros
 
