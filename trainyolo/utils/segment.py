@@ -1,16 +1,23 @@
 from trainyolo.client import MLModel
 import yaml
 import os
+from datetime import datetime
 
-def upload_segment_run(project, run_location=None):
+def upload_latest_run(project, run_location=None):
     run_location = run_location or './output'
 
+    # get latest run
+    runs = os.listdir(os.path.join(run_location, 'train'))
+    runs.sort(key=lambda date: datetime.strptime(date, "%m-%d-%Y-%H:%M:%S"), reverse=True)
+
+    run_path = os.path.join(run_location, 'train', runs[0])    
+
     # read config 
-    with open(os.path.join(run_location, 'config.yaml'), 'r') as f:
+    with open(os.path.join(run_path, 'config.yaml'), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # read results
-    with open(os.path.join(run_location, 'best_miou_model.csv'), 'r') as f:
+    with open(os.path.join(run_path, 'best_miou_model.csv'), 'r') as f:
         lines = [[val.strip() for val in r.split(",")] for r in f.readlines()]
         header, values = lines[0], lines[1]
 
@@ -27,9 +34,9 @@ def upload_segment_run(project, run_location=None):
     else:
         model = project.model
 
-    print(f'adding weights: {os.path.join(run_location, "best_miou_model.pt")} to project ...')
+    print(f'adding weights: {os.path.join(run_path, "best_miou_model.pt")} to project ...')
     model.add_version(
-        os.path.join(run_location, "best_miou_model.pt"),
+        os.path.join(run_path, "best_miou_model.pt"),
         categories=project.categories,
         architecture='trainyolo-seg',
         params={
