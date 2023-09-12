@@ -385,7 +385,7 @@ class Sample:
                         y_max = min(max(0, y_max), im_h)
 
                         xc, yc = (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
-                        w, h = x_max - x_min, y_max - y_min
+                        w, h = abs(x_max - x_min), abs(y_max - y_min)
                         
                         xc, yc = xc / im_w, yc / im_h
                         w, h = w / im_w, h / im_h
