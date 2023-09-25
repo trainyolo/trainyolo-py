@@ -13,6 +13,11 @@ def annotations_to_image(annotations, size):
         mask = rle_to_mask(ann['segmentation'])
         
         x, y, w, h = ann['bbox']
+
+        # hack for overlapping masks
+        inst_region = inst[y:y+h,x:x+w]
+        mask = mask * (inst_region == 0)
+
         inst[y:y+h,x:x+w] += mask * (i+1) 
         cls[y:y+h,x:x+w] += mask * ann["category_id"]
 
