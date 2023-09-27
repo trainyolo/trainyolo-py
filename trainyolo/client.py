@@ -365,7 +365,7 @@ class Sample:
     def pull_label(self, location='./', type='BBOX', format=None):
         if type in ['BBOX','KEYPOINT']:
             format = format or 'yolov8'
-            if format in ['yolov5', 'yolov8']:
+            if format in ['yolov5', 'yolov6', 'yolov8']:
                 asset_filename = self.asset['filename']
                 label_filename = os.path.splitext(asset_filename)[0] + '.txt'
                 label_location = os.path.join(location, 'labels', label_filename)
@@ -589,16 +589,42 @@ class Project:
                     f_val.write(f'./images/{s.asset["filename"]}\n')
 
         # create dataset yaml file
-        with open(os.path.join(project_loc, 'dataset.yaml'), 'w') as f:
-            yaml_content = {
-                'path': os.path.abspath(project_loc),
-                'train': 'train.txt',
-                'val': 'val.txt',
-                'names': {cat['id']-1:cat['name'] for cat in self.categories}
-            }
-            if self.annotation_type == 'KEYPOINT':
-                yaml_content['kpt_shape'] = [len(self.categories[0]['keypoints']),3]
-            yaml.dump(yaml_content, f, default_flow_style=False)
+        if format == "yolov6":
+            with open(os.path.join(project_loc, 'dataset.yaml'), 'w') as f:
+                yaml_content = {
+                    'train': os.path.join(os.path.abspath(project_loc), 'images', 'train'),
+                    'val': os.path.join(os.path.abspath(project_loc), 'images', 'val'),
+                    'is_coco': False,
+                    'nc': len(self.categories),
+                    'names': [cat['name'] for cat in self.categories]
+                }
+                yaml.dump(yaml_content, f, default_flow_style=False)
+        else:
+            with open(os.path.join(project_loc, 'dataset.yaml'), 'w') as f:
+                yaml_content = {
+                    'path': os.path.abspath(project_loc),
+                    'train': 'train.txt',
+                    'val': 'val.txt',
+                    'names': {cat['id']-1:cat['name'] for cat in self.categories}
+                }
+                if self.annotation_type == 'KEYPOINT':
+                    yaml_content['kpt_shape'] = [len(self.categories[0]['keypoints']),3]
+                yaml.dump(yaml_content, f, default_flow_style=False)
+
+        # create train/val folder with symlinks
+        if format == "yolov6":
+
+            # remove folders as train/val spit might have changed
+            [shutil.rmtree(os.path.join(project_loc, f, split)) for f in ['images', 'labels'] for split in ['train', 'val'] if os.path.exists(os.path.join(project_loc, f, split))]
+
+            # create folders
+            [os.makedirs(os.path.join(project_loc, f, split), exist_ok=True) for f in ['images', 'labels'] for split in ['train', 'val'] ]
+
+            # create symlinks
+            for s in samples:
+                txt_filename = s.asset["filename"].rsplit('.',1)[0] + '.txt'
+                os.symlink(f'../{s.asset["filename"]}', f'{os.path.abspath(project_loc)}/images/{"train" if s.split == "TRAIN" else "val"}/{s.asset["filename"]}')
+                os.symlink(f'../{txt_filename}', f'{os.path.abspath(project_loc)}/labels/{"train" if s.split == "TRAIN" else "val"}/{txt_filename}')
 
         # create seperate train/val folder with symlinks
         if trainval_dirs:
