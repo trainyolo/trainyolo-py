@@ -7,6 +7,7 @@ from itertools import repeat
 import yaml
 import time
 import shutil
+import json
 
 class OCRResult:
     def __init__(self, client, data):
@@ -572,13 +573,66 @@ class Project:
         image_loc = os.path.join(project_loc, 'images')
         label_loc = os.path.join(project_loc, 'labels')
 
-        os.makedirs(image_loc, exist_ok=True)
-        os.makedirs(label_loc, exist_ok=True)
-
         print('Downloading samples... (this may take a while depending on your dataset size)')
-        with Pool(8) as p:
-            inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat(format))
-            r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
+        if format == "coco":
+            os.makedirs(image_loc, exist_ok=True)
+            with Pool(8) as p:
+                inputs = zip(samples, repeat(project_loc))
+                r = p.starmap(Sample.pull_image, tqdm(inputs, total=len(samples)))
+        else:        
+            os.makedirs(image_loc, exist_ok=True)
+            os.makedirs(label_loc, exist_ok=True)
+            with Pool(8) as p:
+                inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat(format))
+                r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
+
+        if format == "coco":           
+            train_images, val_images = [], []
+            train_annotations, val_annotations = [], []
+
+            for sample in samples:
+                image = {
+                    'id': sample.name.rsplit('.', 1)[0],
+                    'file_name': sample.name,
+                    'width': sample.asset['metadata']['size'][0],
+                    'height': sample.asset['metadata']['size'][1]
+                }
+                if sample.split == 'TRAIN':
+                    train_images.append(image)
+                else:
+                    val_images.append(image)
+
+                if sample.label is not None:
+                    for i, item in enumerate(sample.label['annotations']):
+                        ann = {
+                            'id': f"{sample.name.rsplit('.', 1)[0]}_{i}",
+                            'image_id': sample.name.rsplit('.', 1)[0],
+                            'bbox': item['bbox'],
+                            'area': item['bbox'][2] * item['bbox'][3],
+                            'category_id': item['category_id']
+                        }
+                        if sample.split == 'TRAIN':
+                            train_annotations.append(ann)
+                        else:
+                            val_annotations.append(ann)
+
+            with open(os.path.join(project_loc, 'train.json'), 'w') as f:
+                coco = {
+                    'images': train_images,
+                    'categories': self.categories,
+                    'annotations': train_annotations
+                }
+                json.dump(coco, f)
+            
+            with open(os.path.join(project_loc, 'val.json'), 'w') as f:
+                coco = {
+                    'images': val_images,
+                    'categories': self.categories,
+                    'annotations': val_annotations
+                }
+                json.dump(coco, f)
+            
+            return
 
         # create train-val txt file
         with open(os.path.join(project_loc, 'train.txt'), 'w') as f_train, open(os.path.join(project_loc, 'val.txt'), 'w') as f_val:
