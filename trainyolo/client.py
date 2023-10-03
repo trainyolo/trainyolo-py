@@ -590,9 +590,10 @@ class Project:
             train_images, val_images = [], []
             train_annotations, val_annotations = [], []
 
-            for sample in samples:
+            ann_id = 0
+            for image_id, sample in enumerate(samples):
                 image = {
-                    'id': sample.name.rsplit('.', 1)[0],
+                    'id': image_id,
                     'file_name': sample.name,
                     'width': sample.asset['metadata']['size'][0],
                     'height': sample.asset['metadata']['size'][1]
@@ -603,18 +604,21 @@ class Project:
                     val_images.append(image)
 
                 if sample.label is not None:
-                    for i, item in enumerate(sample.label['annotations']):
+                    for item in sample.label['annotations']:
                         ann = {
-                            'id': f"{sample.name.rsplit('.', 1)[0]}_{i}",
-                            'image_id': sample.name.rsplit('.', 1)[0],
+                            'id': ann_id,
+                            'image_id': image_id,
                             'bbox': item['bbox'],
                             'area': item['bbox'][2] * item['bbox'][3],
+                            'iscrowd': 0,
                             'category_id': item['category_id']
                         }
                         if sample.split == 'TRAIN':
                             train_annotations.append(ann)
                         else:
                             val_annotations.append(ann)
+                        
+                        ann_id += 1
 
             with open(os.path.join(project_loc, 'train.json'), 'w') as f:
                 coco = {
