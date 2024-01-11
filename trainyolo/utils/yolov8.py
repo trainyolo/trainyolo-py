@@ -138,6 +138,10 @@ def upload_yolov8_run(project, mode='detect', run_location=None, run=None, weigh
     run_location = run_location or './runs'
     run_location = os.path.join(run_location, mode)
 
+    if mode == 'obb':
+        # reset mode back to detect, as everything is the same
+        mode = 'detect'
+
     # exp path
     if run is None:
         # get latest exp

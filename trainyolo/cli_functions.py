@@ -86,6 +86,8 @@ def add_model(name, type, run_location, run, conf, iou):
             upload_yolov5_run(project, run_location=run_location, run=run, conf=conf, iou=iou)
         elif type == 'yolov8':
             upload_yolov8_run(project, mode='detect', run_location=run_location, run=run, conf=conf, iou=iou)
+        elif type == 'yolov8-obb':
+            upload_yolov8_run(project, mode='obb', run_location=run_location, run=run, conf=conf, iou=iou)
         elif type == 'yolov8-seg':
             upload_yolov8_run(project, mode='segment', run_location=run_location, run=run, conf=conf, iou=iou)
         elif type == 'yolov8-pose':
